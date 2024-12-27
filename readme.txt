@@ -161,3 +161,163 @@ Protokół komunikacyjny serwer-klient
             się będzie każda nowo stworzona (po komendzie ustawienia liczb graczy) gra
         b. Serwer: 'Liczba graczy musi być większa od 1.'   - po podaniu błędnej liczby
         c. Serwer: 'Niepoprawny format liczby. Użyj: set_players <liczba>'  - kiedy format wprowadzonej liczby graczy nie jest liczbowy
+
+
+Technologies Used
+- Java 17 for core application development.
+- Apache Maven for managing project dependencies.
+- SonarQube for code quality analysis and test coverage reports.
+- Javadoc for generating project documentation.
+
+
+
+
+Introduction
+The game is based on the popular poker variant called 5-Card Draw, with additional elements tailored for client-server implementation. Players can connect to the server, start games, exchange cards, and finish gameplay.
+
+Basic Game Parameters:
+    - Number of players: 2 to n
+    - Number of cards: 5
+    - Number of chips available to each player at the start: 500
+
+Game Stages:
+    1. Game Start
+    2. Betting Round
+    3. Card Exchange Round
+    4. Betting Round
+    5. Evaluation and Announcement of Results
+
+1. Game Start
+Players join the game, and when the required number of players (set on the server) is met, the game begins.
+Each player receives 5 cards dealt from a standard 52-card deck and a unique player ID.
+2. Betting Round
+
+Players can place bets, wait, fold, raise, or call (match a bet).
+Available Commands:
+
+{game_id} {action} ({action_parameters})
+
+Where the action can be:
+    bet {chip_amount}: A player can bet if they have enough chips and no bet has been made yet.
+    call: A player can call to match the current bet if one exists and they have sufficient funds.
+    check: A player can check if no bet has been made during the round.
+    raise {chip_amount}: Condition: chip_amount + current_contribution > current_bet. The total amount contributed by the player, including the raise, must exceed the current bet.
+    fold: A player can fold, leaving the game until its conclusion.
+Round ends when:
+    All players who haven’t folded match the bet, or
+    All players choose to check, or
+    All but one player fold.
+
+3. Card Exchange Round
+Players can exchange any number of cards (between 0 and 5).
+Available Commands:
+
+{game_id} {action} ({action_parameters})
+
+    stand: A player keeps their cards and proceeds to the next player.
+    exchange {card_indices}: A player discards the specified cards and draws new ones from the deck. If the deck is empty, discarded cards are shuffled into a new deck.
+
+Round ends when:
+    Every player has had a chance to exchange cards.
+
+4. Betting Round
+If more than one player remains after this round, their card combinations are compared based on the following hierarchy (from weakest to strongest):
+
+    High Card: The highest card in the hand (e.g., Ace).
+    One Pair: Two cards of the same value (e.g., two Kings).
+    Two Pair: Two sets of pairs (e.g., two 9s and two 7s).
+    Three of a Kind: Three cards of the same value.
+    Straight: Five consecutive cards of different suits (e.g., 4, 5, 6, 7, 8).
+    Flush: Five cards of the same suit.
+    Full House: A pair and a three-of-a-kind (e.g., two 10s and three Aces).
+    Four of a Kind: Four cards of the same value.
+    Straight Flush: Five consecutive cards of the same suit.
+    Royal Flush: A straight flush from 10 to Ace.
+
+5. Evaluation and Winner Announcement
+The server declares the winner based on the best combination.
+
+
+Other Commands
+    Before joining a game:
+        - new: Creates a new game on the server.
+        - join: Starts the process of joining a game. Afterward, players must provide the game ID.
+        - exit: Exits the game.
+        - set_players {number}: Sets the number of players. This number applies to games created after the command is executed (it does not affect ongoing games).
+        - {game_id} cards: During a player’s turn, they can use this command to recall their current hand.
+
+
+Launching the Game
+
+After downloading the project as a ZIP file:
+
+    Navigate to the root directory of the project (Poker).
+    Use the commands:
+        java -jar server-1.0-jar-with-dependencies.jar --port={port_number}
+        java -jar client-1.0-jar-with-dependencies.jar --host={host_address} --port={port_number}
+
+Example:
+
+    java -jar server-1.0-jar-with-dependencies.jar --port=5678
+    java -jar client-1.0-jar-with-dependencies.jar --host=localhost --port=5678
+
+    To start the server, first, set the number of players when prompted.
+
+
+
+Client-Server Communication Protocol
+    Server: Welcome message and list of commands.
+    Client: new
+        Server: A new game has been created with ID: {game_id}. Join the game by entering the ID.
+        Interaction to create a new game. The game_id is assigned by the server.
+    Client: join
+        Server: Enter the game ID you wish to join:
+        Client: {game_id}
+        Server: Joined game with ID: {game_id}
+        Process to join an existing game.
+Game Command Examples
+    Placing a Bet
+        Client: {game_id} bet {chip_amount}
+        Server Responses:
+            NOT_BET_ROUND: Error if it’s not the betting round.
+            ALREADY_FOLD: Error if the player has already folded.
+            BET_EXIST: Error if a bet has already been made.
+            NOT_ENOUGH_CHIPS: Error if the player lacks enough chips.
+            Bet successfully placed.
+
+    Calling a Bet
+        Client: {game_id} call
+        Server Responses:
+            NOT_BET_ROUND, ALREADY_FOLD, NOT_ENOUGH_CHIPS, NO_BET_TO_CALL
+            Successfully called.
+
+    Checking
+        Client: {game_id} check
+        Server Responses:
+            NOT_BET_ROUND, ALREADY_FOLD, EXISTS_BET_TO_CALL
+            Successfully checked.
+
+    Folding
+        Client: {game_id} fold
+        Server Responses:
+            NOT_BET_ROUND, ALREADY_FOLD
+            Successfully folded!
+
+    Raising a Bet
+        Client: {game_id} raise {chip_amount}
+        Server Responses:
+            NOT_BET_ROUND, ALREADY_FOLD, NOT_ENOUGH_CHIPS
+            The chip amount added to your contribution ({player_current_contribution}) must exceed the current bet ({current_bet}).
+            Successfully raised.
+
+    Exchanging Cards
+        Client: {game_id} exchange {card_indices}
+        Server Responses:
+            NOT_BET_ROUND, WRONG_INDEX
+            Cards exchanged successfully!
+
+    Standing
+        Client: {game_id} stand
+        Server Responses:
+            NOT_DRAW_ROUND
+            Successfully stood.
